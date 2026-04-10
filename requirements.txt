@@ -1,0 +1,11 @@
+aiogram
+aiohttp
+aiosqlite
+numpy
+python-dotenv
+sentence-transformers
+transformers
+torch
+certifi
+huggingface_hub
+hf_xet
