@@ -1,7 +1,11 @@
 aiogram
 aiohttp
 aiosqlite
-python-dotenv
 numpy
+python-dotenv
+sentence-transformers
+transformers
+torch
 certifi
-rapidfuzz
+huggingface_hub
+hf_xet

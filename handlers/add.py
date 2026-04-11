@@ -124,12 +124,20 @@ def register_add_handlers(db, embedding_service):
         item_type = data["item_type"]
         photo_file_id = message.photo[-1].file_id
 
+        text_for_embedding = (
+            f"{name}. {description}. "
+            f"Группа: {gender_group}. "
+            f"Тип: {item_type}. "
+            f"Коробка: {box_number}"
+        )
+        emb = embedding_service.encode_text(text_for_embedding)
+
         prop_id = await db.add_prop(
             name=name,
             description=description,
             box_number=box_number,
             photo_file_id=photo_file_id,
-            embedding=None,
+            embedding=emb,
             total_quantity=total_quantity,
             gender_group=gender_group,
             item_type=item_type
@@ -160,12 +168,20 @@ def register_add_handlers(db, embedding_service):
         gender_group = data["gender_group"]
         item_type = data["item_type"]
 
+        text_for_embedding = (
+            f"{name}. {description}. "
+            f"Группа: {gender_group}. "
+            f"Тип: {item_type}. "
+            f"Коробка: {box_number}"
+        )
+        emb = embedding_service.encode_text(text_for_embedding)
+
         prop_id = await db.add_prop(
             name=name,
             description=description,
             box_number=box_number,
             photo_file_id=None,
-            embedding=None,
+            embedding=emb,
             total_quantity=total_quantity,
             gender_group=gender_group,
             item_type=item_type

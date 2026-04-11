@@ -122,7 +122,7 @@ class Database:
             """, (prop_id,))
             return await cursor.fetchone()
 
-    async def keyword_search(self, query: str, limit: int = 10):
+    async def keyword_search(self, query: str, limit: int = 50):
         q = f"%{query.lower()}%"
         async with aiosqlite.connect(self.path) as db:
             cursor = await db.execute("""
@@ -146,7 +146,7 @@ class Database:
             """)
             return await cursor.fetchall()
 
-    async def list_recent_props(self, limit: int = 30):
+    async def list_recent_props(self, limit: int = 200):
         async with aiosqlite.connect(self.path) as db:
             cursor = await db.execute("""
                 SELECT id, name, description, box_number, photo_file_id, total_quantity, gender_group, item_type
@@ -165,7 +165,7 @@ class Database:
             await db.commit()
             return cursor.rowcount > 0
 
-    async def get_active_issue_by_prop_id(self, prop_id: int):
+    async def get_active_issues_for_prop(self, prop_id: int):
         async with aiosqlite.connect(self.path) as db:
             cursor = await db.execute("""
                 SELECT id, prop_id, team_name, taken_by_user_id, taken_by_username,
@@ -173,9 +173,34 @@ class Database:
                 FROM issued_items
                 WHERE prop_id = ? AND returned = 0
                 ORDER BY id DESC
-                LIMIT 1
             """, (prop_id,))
-            return await cursor.fetchone()
+            rows = await cursor.fetchall()
+
+        result = []
+        for row in rows:
+            result.append({
+                "id": row[0],
+                "prop_id": row[1],
+                "team_name": row[2],
+                "taken_by_user_id": row[3],
+                "taken_by_username": row[4],
+                "taken_by_full_name": row[5],
+                "issued_at": row[6],
+                "returned": row[7],
+                "last_reminded_at": row[8],
+            })
+        return result
+
+    async def user_has_active_issue_for_prop(self, prop_id: int, user_id: int) -> bool:
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute("""
+                SELECT 1
+                FROM issued_items
+                WHERE prop_id = ? AND returned = 0 AND taken_by_user_id = ?
+                LIMIT 1
+            """, (prop_id, user_id))
+            row = await cursor.fetchone()
+            return row is not None
 
     async def count_active_issues_for_prop(self, prop_id: int) -> int:
         async with aiosqlite.connect(self.path) as db:
@@ -238,15 +263,15 @@ class Database:
             await db.commit()
             return True
 
-    async def return_item(self, prop_id: int) -> bool:
+    async def return_item_by_user(self, prop_id: int, user_id: int) -> bool:
         async with aiosqlite.connect(self.path) as db:
             cursor = await db.execute("""
                 SELECT id
                 FROM issued_items
-                WHERE prop_id = ? AND returned = 0
+                WHERE prop_id = ? AND returned = 0 AND taken_by_user_id = ?
                 ORDER BY id DESC
                 LIMIT 1
-            """, (prop_id,))
+            """, (prop_id, user_id))
             row = await cursor.fetchone()
 
             if not row:
@@ -263,8 +288,8 @@ class Database:
             return cursor.rowcount > 0
 
     async def get_prop_status(self, prop_id: int):
-        issue = await self.get_active_issue_by_prop_id(prop_id)
         quantity_info = await self.get_prop_quantity_info(prop_id)
+        active_issues = await self.get_active_issues_for_prop(prop_id)
 
         if quantity_info is None:
             return {
@@ -273,23 +298,18 @@ class Database:
                 "total_quantity": 0,
                 "taken_count": 0,
                 "available_quantity": 0,
+                "active_issues": [],
             }
 
-        if issue:
-            return {
-                "is_taken": quantity_info["taken_count"] > 0,
-                "team_name": issue[2],
-                "total_quantity": quantity_info["total_quantity"],
-                "taken_count": quantity_info["taken_count"],
-                "available_quantity": quantity_info["available_quantity"],
-            }
+        latest_team = active_issues[0]["team_name"] if active_issues else None
 
         return {
-            "is_taken": False,
-            "team_name": None,
+            "is_taken": quantity_info["taken_count"] > 0,
+            "team_name": latest_team,
             "total_quantity": quantity_info["total_quantity"],
             "taken_count": quantity_info["taken_count"],
             "available_quantity": quantity_info["available_quantity"],
+            "active_issues": active_issues,
         }
 
     async def is_admin(self, user_id: int) -> bool:

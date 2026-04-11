@@ -1,17 +1,15 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
-from aiogram.fsm.context import FSMContext
 
 from states import IssueState
 from utils.formatters import build_prop_text_with_box, build_return_text
-from utils.keyboards import prop_inline_keyboard
+from handlers.search import refresh_browser_message_for_user
 
 router = Router()
 
 
 def register_issue_handlers(db):
     @router.callback_query(F.data.startswith("take:"))
-    async def take_item_callback(callback: CallbackQuery, state: FSMContext):
+    async def take_item_callback(callback, state):
         prop_id = int(callback.data.split(":")[1])
 
         quantity_info = await db.get_prop_quantity_info(prop_id)
@@ -32,7 +30,7 @@ def register_issue_handlers(db):
         await callback.answer()
 
     @router.message(IssueState.waiting_for_team_name)
-    async def process_team_name(message: Message, state: FSMContext):
+    async def process_team_name(message, state):
         team_name = (message.text or "").strip()
 
         if not team_name:
@@ -88,39 +86,25 @@ def register_issue_handlers(db):
             item_type=item_type,
             total_quantity=quantity_info["total_quantity"],
             available_quantity=quantity_info["available_quantity"],
-            taken_count=quantity_info["taken_count"]
+            taken_count=quantity_info["taken_count"],
+            taken_by_username=user.username,
+            taken_by_user_id=user.id
         )
 
-        keyboard = prop_inline_keyboard(
-            prop_id=prop_id,
-            available_quantity=quantity_info["available_quantity"],
-            taken_count=quantity_info["taken_count"]
-        )
-
-        if photo_file_id:
-            await message.answer_photo(
-                photo=photo_file_id,
-                caption=text,
-                reply_markup=keyboard
-            )
-        else:
-            await message.answer(
-                text,
-                reply_markup=keyboard
-            )
-
+        await message.answer(text)
+        await refresh_browser_message_for_user(message.bot, db, user.id)
         await state.clear()
 
     @router.callback_query(F.data.startswith("return:"))
-    async def return_item_callback(callback: CallbackQuery):
+    async def return_item_callback(callback):
         prop_id = int(callback.data.split(":")[1])
 
-        quantity_info = await db.get_prop_quantity_info(prop_id)
-        if not quantity_info or quantity_info["taken_count"] <= 0:
-            await callback.answer("Сейчас нечего возвращать.", show_alert=True)
+        can_return = await db.user_has_active_issue_for_prop(prop_id, callback.from_user.id)
+        if not can_return:
+            await callback.answer("Ты не можешь вернуть эту вещь: ты ее не брал.", show_alert=True)
             return
 
-        success = await db.return_item(prop_id)
+        success = await db.return_item_by_user(prop_id, callback.from_user.id)
         if not success:
             await callback.answer("Не удалось вернуть вещь.", show_alert=True)
             return
@@ -145,27 +129,13 @@ def register_issue_handlers(db):
             item_type=item_type,
             total_quantity=quantity_info["total_quantity"],
             available_quantity=quantity_info["available_quantity"],
-            taken_count=quantity_info["taken_count"]
+            taken_count=quantity_info["taken_count"],
+            username=callback.from_user.username,
+            user_id=callback.from_user.id
         )
 
-        keyboard = prop_inline_keyboard(
-            prop_id=prop_id,
-            available_quantity=quantity_info["available_quantity"],
-            taken_count=quantity_info["taken_count"]
-        )
-
-        if photo_file_id:
-            await callback.message.answer_photo(
-                photo=photo_file_id,
-                caption=text,
-                reply_markup=keyboard
-            )
-        else:
-            await callback.message.answer(
-                text,
-                reply_markup=keyboard
-            )
-
+        await callback.message.answer(text)
+        await refresh_browser_message_for_user(callback.bot, db, callback.from_user.id)
         await callback.answer("Одна единица возвращена")
 
     return router

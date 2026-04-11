@@ -12,9 +12,14 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from config import BOT_TOKEN, DB_PATH
+from config import (
+    BOT_TOKEN,
+    DB_PATH,
+    EMBEDDING_MODEL_NAME,
+    SIMILARITY_THRESHOLD
+)
 from database import Database
-from services import SearchService, reminder_loop
+from services import EmbeddingService, SearchService, reminder_loop
 from handlers import (
     start_router,
     fallback_router,
@@ -57,13 +62,17 @@ async def main():
     db = Database(DB_PATH)
     await db.init()
 
-    search_service = SearchService(db)
+    print("Загрузка модели эмбеддингов...")
+    embedding_service = EmbeddingService(EMBEDDING_MODEL_NAME)
+    print("Модель загружена")
+
+    search_service = SearchService(db, embedding_service, SIMILARITY_THRESHOLD)
 
     dp = Dispatcher(storage=MemoryStorage())
 
     dp.include_router(start_router)
     dp.include_router(register_menu_handlers(db))
-    dp.include_router(register_add_handlers(db, None))
+    dp.include_router(register_add_handlers(db, embedding_service))
     dp.include_router(register_search_handlers(search_service, db))
     dp.include_router(register_issue_handlers(db))
     dp.include_router(register_list_handlers(db))
