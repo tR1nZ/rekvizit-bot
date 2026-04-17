@@ -32,6 +32,8 @@ def build_prop_browser_text(
         header += f" • Поиск: <b>{query}</b>"
     elif mode == "list":
         header += " • Список вещей"
+    elif mode == "my_items":
+        header += " • Мои взятые вещи"
 
     active_issues = status.get("active_issues", [])
     if active_issues:

@@ -28,7 +28,8 @@ from handlers import (
     register_list_handlers,
     register_issue_handlers,
     register_menu_handlers,
-    register_admin_handlers
+    register_admin_handlers,
+    register_my_items_handlers
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +77,7 @@ async def main():
     dp.include_router(register_search_handlers(search_service, db))
     dp.include_router(register_issue_handlers(db))
     dp.include_router(register_list_handlers(db))
+    dp.include_router(register_my_items_handlers(db))
     dp.include_router(register_admin_handlers(db))
     dp.include_router(fallback_router)
 

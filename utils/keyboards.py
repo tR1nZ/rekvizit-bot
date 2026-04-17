@@ -9,6 +9,7 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
         KeyboardButton(text="📦 Список вещей"),
     )
     builder.row(
+        KeyboardButton(text="📋 Мои взятые вещи"),
         KeyboardButton(text="➕ Добавить вещь"),
     )
     return builder.as_markup(resize_keyboard=True)

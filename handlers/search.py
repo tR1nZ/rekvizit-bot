@@ -154,53 +154,50 @@ async def refresh_browser_message_for_user(bot, db, user_id: int):
     if not chat_id or not message_id:
         return
 
-    try:
-        msg = await bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=None)
-    except Exception:
-        class DummyMessage:
-            def __init__(self, bot, chat_id, message_id):
-                self.bot = bot
-                self.chat = type("Chat", (), {"id": chat_id})()
-                self.message_id = message_id
+    class DummyMessage:
+        def __init__(self, bot, chat_id, message_id):
+            self.bot = bot
+            self.chat = type("Chat", (), {"id": chat_id})()
+            self.message_id = message_id
 
-            async def edit_media(self, media, reply_markup=None):
-                return await self.bot.edit_message_media(
-                    chat_id=self.chat.id,
-                    message_id=self.message_id,
-                    media=media,
-                    reply_markup=reply_markup
-                )
+        async def edit_media(self, media, reply_markup=None):
+            return await self.bot.edit_message_media(
+                chat_id=self.chat.id,
+                message_id=self.message_id,
+                media=media,
+                reply_markup=reply_markup
+            )
 
-            async def edit_text(self, text, reply_markup=None):
-                return await self.bot.edit_message_text(
-                    chat_id=self.chat.id,
-                    message_id=self.message_id,
-                    text=text,
-                    reply_markup=reply_markup
-                )
+        async def edit_text(self, text, reply_markup=None):
+            return await self.bot.edit_message_text(
+                chat_id=self.chat.id,
+                message_id=self.message_id,
+                text=text,
+                reply_markup=reply_markup
+            )
 
-            async def delete(self):
-                return await self.bot.delete_message(
-                    chat_id=self.chat.id,
-                    message_id=self.message_id
-                )
+        async def delete(self):
+            return await self.bot.delete_message(
+                chat_id=self.chat.id,
+                message_id=self.message_id
+            )
 
-            async def answer(self, text, reply_markup=None):
-                return await self.bot.send_message(
-                    chat_id=self.chat.id,
-                    text=text,
-                    reply_markup=reply_markup
-                )
+        async def answer(self, text, reply_markup=None):
+            return await self.bot.send_message(
+                chat_id=self.chat.id,
+                text=text,
+                reply_markup=reply_markup
+            )
 
-            async def answer_photo(self, photo, caption, reply_markup=None):
-                return await self.bot.send_photo(
-                    chat_id=self.chat.id,
-                    photo=photo,
-                    caption=caption,
-                    reply_markup=reply_markup
-                )
+        async def answer_photo(self, photo, caption, reply_markup=None):
+            return await self.bot.send_photo(
+                chat_id=self.chat.id,
+                photo=photo,
+                caption=caption,
+                reply_markup=reply_markup
+            )
 
-        msg = DummyMessage(bot, chat_id, message_id)
+    msg = DummyMessage(bot, chat_id, message_id)
 
     await render_browser_message(
         db=db,

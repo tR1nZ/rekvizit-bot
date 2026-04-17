@@ -387,3 +387,24 @@ class Database:
                 WHERE id = ?
             """, (issue_id,))
             await db.commit()
+
+    async def get_active_issues_by_user(self, user_id: int):
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute("""
+                SELECT
+                    p.id,
+                    p.name,
+                    p.description,
+                    p.box_number,
+                    p.photo_file_id,
+                    p.total_quantity,
+                    p.gender_group,
+                    p.item_type
+                FROM issued_items ii
+                JOIN props p ON p.id = ii.prop_id
+                WHERE ii.returned = 0
+                  AND ii.taken_by_user_id = ?
+                GROUP BY p.id
+                ORDER BY MAX(ii.id) DESC
+            """, (user_id,))
+            return await cursor.fetchall()
